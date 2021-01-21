@@ -446,7 +446,12 @@ bool TGParser::addDefOne(std::unique_ptr<Record> Rec) {
       PrintNote(Prev->getLoc(), "location of previous definition");
       return true;
     }
-    Rec->setName(Records.getNewAnonymousName());
+    auto *OldName = Rec->getNameInit();
+    auto *NewName = Records.getNewAnonymousName();
+
+    MapResolver R(Rec.get());
+    R.set(OldName, NewName);
+    Rec->resolveReferences(R);
   }
 
   Rec->resolveReferences();

@@ -301,6 +301,7 @@ protected:
     IK_CondOpInit,
     IK_FoldOpInit,
     IK_IsAOpInit,
+    IK_AnonymousNameInit,
     IK_StringInit,
     IK_VarInit,
     IK_VarListElementInit,
@@ -573,6 +574,36 @@ public:
 
   Init *getBit(unsigned Bit) const override {
     return BitInit::get((Value & (1ULL << Bit)) != 0);
+  }
+};
+
+/// "anonymous_n" - Represent an anonymous record name
+class AnonymousNameInit : public TypedInit {
+  unsigned Value;
+
+  explicit AnonymousNameInit(unsigned V)
+      : TypedInit(IK_AnonymousNameInit, StringRecTy::get()), Value(V) {}
+
+public:
+  AnonymousNameInit(const AnonymousNameInit &) = delete;
+  AnonymousNameInit &operator=(const AnonymousNameInit &) = delete;
+
+  static bool classof(const Init *I) {
+    return I->getKind() == IK_AnonymousNameInit;
+  }
+
+  static AnonymousNameInit *get(unsigned);
+
+  unsigned getValue() const { return Value; }
+
+  StringInit *getNameInit() const;
+
+  std::string getAsString() const override;
+
+  Init *resolveReferences(Resolver &R) const override;
+
+  Init *getBit(unsigned Bit) const override {
+    llvm_unreachable("Illegal bit reference off string");
   }
 };
 

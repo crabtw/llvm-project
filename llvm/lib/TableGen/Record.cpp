@@ -503,6 +503,26 @@ IntInit::convertInitializerBitRange(ArrayRef<unsigned> Bits) const {
   return BitsInit::get(NewBits);
 }
 
+AnonymousNameInit *AnonymousNameInit::get(unsigned V) {
+  return new (Allocator) AnonymousNameInit(V);
+}
+
+StringInit *AnonymousNameInit::getNameInit() const {
+  return StringInit::get(getAsString());
+}
+
+std::string AnonymousNameInit::getAsString() const {
+  return "anonymous_" + utostr(Value);
+}
+
+Init *AnonymousNameInit::resolveReferences(Resolver &R) const {
+  if (R.isFinal())
+    return getNameInit();
+  auto *Old = const_cast<Init *>(static_cast<const Init *>(this));
+  auto *New = R.resolve(Old);
+  return New ? New : Old;
+}
+
 StringInit *StringInit::get(StringRef V, StringFormat Fmt) {
   static StringMap<StringInit*, BumpPtrAllocator &> StringPool(Allocator);
   static StringMap<StringInit*, BumpPtrAllocator &> CodePool(Allocator);
@@ -702,7 +722,9 @@ Init *UnOpInit::Fold(Record *CurRec, bool IsFinal) const {
 
         // Self-references are allowed, but their resolution is delayed until
         // the final resolve to ensure that we get the correct type for them.
-        if (Name == CurRec->getNameInit()) {
+        auto *Anonymous = dyn_cast<AnonymousNameInit>(CurRec->getNameInit());
+        if (Name == CurRec->getNameInit() ||
+            (Anonymous && Name == Anonymous->getNameInit())) {
           if (!IsFinal)
             break;
           D = CurRec;
@@ -2589,7 +2611,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
 /// GetNewAnonymousName - Generate a unique anonymous name that can be used as
 /// an identifier.
 Init *RecordKeeper::getNewAnonymousName() {
-  return StringInit::get("anonymous_" + utostr(AnonCounter++));
+  return AnonymousNameInit::get(AnonCounter++);
 }
 
 // These functions implement the phase timing facility. Starting a timer
